@@ -32,6 +32,10 @@ class EventListeners(commands.Cog):
         if message.author == self.bot.user:
             return
 
+        # Do not respond if its not a direct mention
+        if not f"<@{self.bot.user.id}>" in message.content:  # pyright: ignore[reportOptionalMemberAccess]
+            return
+
         # Strip mention of bot ID
         cleaned_message = message.content.replace(f"<@{self.bot.user.id}>", "").strip()  # pyright: ignore[reportOptionalMemberAccess]
 
