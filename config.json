@@ -1,6 +1,6 @@
 {
-  "model": "gemini-3.8-flash",
+  "model": "gemini-4-carbon",
   "service_tier": "flex",
-  "reasoning_effort": "low",
-  "web_search": true
+  "reasoning_effort": "medium",
+  "web_search": false
 }

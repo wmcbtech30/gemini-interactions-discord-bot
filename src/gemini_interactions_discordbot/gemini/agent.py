@@ -4,7 +4,10 @@ from google.genai.interactions import Interaction
 
 from gemini_interactions_discordbot import BotClient
 from gemini_interactions_discordbot.gemini.config import load_config
-from gemini_interactions_discordbot.gemini.files import upload_file
+from gemini_interactions_discordbot.gemini.files import (
+    MAX_FILE_SIZE_BYTES,
+    encode_file,
+)
 from gemini_interactions_discordbot.gemini.threads import (
     load_thread_id,
     save_thread_id,
@@ -94,40 +97,45 @@ class GoogleAgent:
             {'type': 'text', 'text': prompt}
         ]
 
-        # Download attachments and append them as prompt
+        # Download attachments, base64-encode them, and append them as prompt
         if self.context.attachments:
             for attachment in self.context.attachments:
                 # Throw exception if the file does not have mime type
                 if not attachment.content_type:
                     raise ValueError(f"Attachment {attachment.filename} does not have a mime type")
 
-                # Upload
-                file_uri = await upload_file(self.bot, self.bot.csession_aiohttp, attachment.url)
+                # Throw exception if the file exceeds 20 MB
+                if attachment.size > MAX_FILE_SIZE_BYTES:
+                    raise ValueError(f"Attachment {attachment.filename} exceeds the 20 MB size limit")
+
+                # Encode to base64
+                encoded_data = await encode_file(self.bot.csession_aiohttp, attachment.url)
+                mime_type = attachment.content_type.split(";")[0].strip()
 
                 # Determine mimetypes
                 modality_type = None
-                if attachment.content_type.startswith('video/'):
+                if mime_type.startswith('video/'):
                     modality_type = 'video'
-                elif attachment.content_type.startswith('image/'):
+                elif mime_type.startswith('image/'):
                     modality_type = 'image'
-                elif attachment.content_type.startswith('audio/'):
+                elif mime_type.startswith('audio/'):
                     modality_type = 'audio'
                 else:
-                    modality_type = 'file'
+                    modality_type = 'document'
 
                 # Check if attachment is video so we can use agentic processing
                 if modality_type == 'video':
                     input_prompts.append({
                         'type': 'video',
-                        'uri': file_uri,
-                        'mime_type': attachment.content_type,
+                        'data': encoded_data,
+                        'mime_type': mime_type,
                         'processing': 'agentic'
                     })
                 else:
                     input_prompts.append({
                         'type': modality_type,
-                        'uri': file_uri,
-                        'mime_type': attachment.content_type
+                        'data': encoded_data,
+                        'mime_type': mime_type
                     })
 
         # Tools
